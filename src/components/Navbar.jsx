@@ -57,25 +57,6 @@ export default function Navbar() {
         <div style={{ flex: 1 }} />
 
         <button
-          onClick={toggle}
-          title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-          aria-label="Toggle theme"
-          style={{
-            display: "grid",
-            placeItems: "center",
-            padding: "0.45rem 0.7rem",
-            borderRadius: 10,
-            border: "1px solid var(--border)",
-            background: "var(--card)",
-            color: "var(--text)",
-            marginRight: 8,
-            cursor: "pointer",
-          }}
-        >
-          {theme === "light" ? <FullMoonIcon /> : <SunIcon />}
-        </button>
-
-        <button
           onClick={handleSignOut}
           style={{
             padding: "0.45rem 0.8rem",

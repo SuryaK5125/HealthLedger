@@ -1,0 +1,86 @@
+/* Base light mode variables */
+:root {
+  --bg: #faf9ff;
+  --card: #ffffff;
+  --text: #222;
+  --muted: #555;
+  --border: #eee;
+  --accent: #ece9ff;
+  --accentText: #4b3fff;
+}
+
+/* Dark mode overrides */
+body[data-theme="dark"] {
+  --bg: #111216;
+  --card: #16181d;
+  --text: #e8e8ef;
+  --muted: #a0a3ad;
+  --border: #24262c;
+  --accent: #24223a;
+  --accentText: #b4a6ff;
+}
+
+/* Global reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+a {
+  color: var(--accentText);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+input, select, textarea, button {
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--card);
+  color: var(--text);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accentText);
+}
+
+button {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+button:hover {
+  background: var(--accent);
+}
+
+/* Utility classes */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.muted {
+  color: var(--muted);
+}
+.badge {
+  background: var(--accent);
+  color: var(--accentText);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}

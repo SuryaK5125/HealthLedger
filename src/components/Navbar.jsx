@@ -1,5 +1,4 @@
 import { NavLink } from "react-router-dom";
-import { useTheme } from "../theme/ThemeProvider";
 import { useAuth } from "../context/AuthContext";
 
 // --- Icons (inline SVGs) ---
@@ -51,7 +50,6 @@ const linkStyle = ({ isActive }) => ({
 });
 
 export default function Navbar() {
-  const { theme, toggle } = useTheme();
   const { logout } = useAuth();
 
   const handleSignOut = async () => {

@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import ThemeProvider from "./theme/ThemeProvider";
 import Navbar from "./components/Navbar";
 
 // pages
@@ -22,7 +21,6 @@ function App() {
   if (!user) return <Login />;
   return (
     <BrowserRouter>
-      <ThemeProvider>
         <div style={{ padding: "1rem 2rem", maxWidth: 1100, margin: "0 auto" }}>
           <Navbar />
           <Routes>
@@ -40,7 +38,6 @@ function App() {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>
-      </ThemeProvider>
     </BrowserRouter>
   );
 }

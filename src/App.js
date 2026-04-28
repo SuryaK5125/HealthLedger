@@ -18,7 +18,30 @@ function App() {
   const { user, loading } = useAuth();
 
   if (loading) return <div>Loading...</div>;
-  if (!user) return <Login />;
+
+return (
+  <BrowserRouter>
+    <div style={{ padding: "1rem 2rem", maxWidth: 1100, margin: "0 auto" }}>
+      {user && <Navbar />}
+
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profiles" element={<Profiles />} />
+
+        {/* Protect only sensitive pages */}
+        <Route
+          path="/upload"
+          element={user ? <UploadForm /> : <Navigate to="/" />}
+        />
+
+        <Route path="/login" element={<Login />} />
+      </Routes>
+    </div>
+  </BrowserRouter>
+);
+}
   return (
     <BrowserRouter>
         <div style={{ padding: "1rem 2rem", maxWidth: 1100, margin: "0 auto" }}>

@@ -19,50 +19,48 @@ function App() {
 
   if (loading) return <div>Loading...</div>;
 
-return (
-  <BrowserRouter>
-    <div style={{ padding: "1rem 2rem", maxWidth: 1100, margin: "0 auto" }}>
-      {user && <Navbar />}
-
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/profiles" element={<Profiles />} />
-
-        {/* Protect only sensitive pages */}
-        <Route
-          path="/upload"
-          element={user ? <UploadForm /> : <Navigate to="/" />}
-        />
-
-        <Route path="/login" element={<Login />} />
-      </Routes>
-    </div>
-  </BrowserRouter>
-);
-}
   return (
     <BrowserRouter>
-        <div style={{ padding: "1rem 2rem", maxWidth: 1100, margin: "0 auto" }}>
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+      <div style={{ padding: "1rem 2rem", maxWidth: 1100, margin: "0 auto" }}>
+        
+        {/* Show navbar only if logged in */}
+        {user && <Navbar />}
 
-            <Route path="/profiles" element={<Profiles />} />
-            <Route path="/profiles/:id" element={<ProfileDetail />} />
+        <Routes>
+          {/* Home route */}
+          <Route
+            path="/"
+            element={
+              user ? <Navigate to="/dashboard" /> : <Login />
+            }
+          />
 
-            <Route path="/records" element={<RecordsList />} />
-            <Route path="/upload" element={<UploadForm />} />
+          {/* Dashboard visible to all */}
+          <Route path="/dashboard" element={<Dashboard />} />
 
-            <Route path="/appointments" element={<Appointments />} />
+          <Route path="/profiles" element={<Profiles />} />
 
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </div>
+          {/* Protected routes */}
+          <Route
+            path="/upload"
+            element={user ? <UploadForm /> : <Navigate to="/" />}
+          />
+
+          <Route
+            path="/records"
+            element={user ? <RecordsList /> : <Navigate to="/" />}
+          />
+
+          <Route
+            path="/appointments"
+            element={user ? <Appointments /> : <Navigate to="/" />}
+          />
+
+          {/* Explicit login route */}
+          <Route path="/login" element={<Login />} />
+        </Routes>
+      </div>
     </BrowserRouter>
   );
 }
-
 export default App;

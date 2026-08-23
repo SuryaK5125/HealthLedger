@@ -1,74 +1,134 @@
 # HealthLedger
 
-A family health record manager built with React and Firebase. Store and organize medical documents, track medications per family member, and manage upcoming appointments — all in one place.
+A full-stack family health records platform for managing profiles, medications, appointments, and medical documents with secure user-scoped access.
+
+---
+
+## Live Demo
+
+- Frontend: https://healthledger-surya.vercel.app
+
+> Use **View Demo** on the login page to explore a read-only sample workspace without creating an account.
+
+---
+
+## Overview
+
+HealthLedger is a full-stack web application that allows users to manage health information for multiple family members from a single account.
+
+Each family profile can have its own medications, appointments, and medical records. The React frontend communicates with an Express REST API, MongoDB stores structured application data, and Cloudinary stores uploaded medical documents.
+
+The backend handles authentication, validation, ownership checks, resource-level authorization, and file-storage coordination so each user's family data remains isolated from other authenticated users.
 
 ---
 
 ## Features
 
-- **Google Authentication** — sign in with a single click, no passwords
-- **Family Profiles** — create profiles for each family member with DOB, gender, and blood group
-- **Medication Tracking** — log medications per profile with dosage, frequency, and date range; toggle between current and history views
-- **Medical Records** — upload prescriptions, test results, and vaccination documents via Cloudinary
-- **Appointments** — schedule and view upcoming appointments with doctor, specialty, location, and notes
-- **Dashboard** — overview of profiles, recent uploads, upcoming reminders, and next appointment
+- Email/password authentication with JWT
+- Multiple family health profiles per account
+- Medication tracking
+- Appointment scheduling and tracking
+- Medical record and document uploads
+- Dashboard with health activity summaries
+- Ownership-scoped access to profiles and child resources
+- Read-only demo mode with fictional sample data
+- Responsive frontend interface
+- Cloudinary-backed file storage
+- Cascade cleanup for profile-associated resources and uploaded assets
 
 ---
 
 ## Tech Stack
 
-React, Firebase Firestore, Firebase Auth, Cloudinary, React Router
+### Frontend
+
+React, React Router, Axios, CSS
+
+### Backend
+
+Node.js, Express.js, MongoDB, Mongoose, JWT, bcrypt, express-validator, Multer, Helmet, Morgan
+
+### Infrastructure
+
+MongoDB Atlas, Cloudinary, Vercel, Render
 
 ---
 
-## Run locally
+## Architecture
 
-```bash
-git clone https://github.com/SuryaK5125/healthledger.git
-cd healthledger
-npm install
+```text
+                    ┌─────────────────┐
+                    │ React Frontend  │
+                    │     Vercel      │
+                    └────────┬────────┘
+                             │
+                         REST / HTTPS
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │ Express REST API│
+                    │     Render      │
+                    ├─────────────────┤
+                    │ JWT Auth        │
+                    │ Validation      │
+                    │ Authorization   │
+                    │ Controllers     │
+                    └───────┬─────────┘
+                            │
+                 ┌──────────┴──────────┐
+                 │                     │
+                 ▼                     ▼
+        ┌─────────────────┐    ┌─────────────────┐
+        │ MongoDB Atlas   │    │   Cloudinary    │
+        │ Structured Data │    │ Uploaded Files  │
+        └─────────────────┘    └─────────────────┘
 ```
+---
 
-Create a `.env` file in the root:
+## Screenshots
 
-```
-REACT_APP_FIREBASE_API_KEY=your_key
-REACT_APP_FIREBASE_AUTH_DOMAIN=your_domain
-REACT_APP_FIREBASE_PROJECT_ID=your_project_id
-REACT_APP_FIREBASE_STORAGE_BUCKET=your_bucket
-REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-REACT_APP_FIREBASE_APP_ID=your_app_id
-```
+### Login & Demo Access
 
-Then:
+Use **View Demo** to explore HealthLedger without creating an account.
 
-```bash
-npm start
-```
+![HealthLedger Login](screenshots/login.)
+
+### Demo Dashboard
+
+A populated family health dashboard showing profiles, medications, recent records, and upcoming appointments.
+
+![HealthLedger Demo Dashboard](screenshots/dashboard-demo.png)
+
+### Medical Records
+
+Read-only sample medical records associated with fictional family profiles.
+
+![HealthLedger Medical Records](screenshots/records-demo.png)
+
+---
+## Engineering Highlights
+
+- JWT-based authentication with separate ownership-based authorization
+- Profile-scoped access control across medications, appointments, and medical records
+- Validated REST APIs with explicit field whitelisting
+- Backend-mediated document uploads using Multer and Cloudinary
+- Compensating cleanup when Cloudinary succeeds but a MongoDB write fails
+- Cascade deletion of profile-associated resources and uploaded assets
+- Read-only demo mode that keeps real authenticated data completely separate
 
 ---
 
-## Project structure
+## Deployment
 
-```
-src/
-├── components/
-│   ├── Navbar.jsx
-│   ├── RecordsList.jsx
-│   └── UploadForm.jsx
-├── context/
-│   └── AuthContext.jsx
-├── pages/
-│   ├── Appointments.jsx
-│   ├── Dashboard.jsx
-│   ├── Login.jsx
-│   ├── ProfileDetail.jsx
-│   └── Profiles.jsx
-├── App.js
-├── firebase.js
-└── index.css
-```
+Frontend: Vercel  
+Backend: Render  
+Database: MongoDB Atlas  
+File Storage: Cloudinary  
+
+Live Application: https://healthledger-surya.vercel.app
 
 ---
 
-*Built by [Surya Kalimuthu](https://github.com/SuryaK5125)*
+## Author
+
+Built by [Surya Kalimuthu](https://github.com/SuryaK5125)

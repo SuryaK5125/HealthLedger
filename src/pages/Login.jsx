@@ -28,7 +28,7 @@ export default function Login() {
   return (
     <div
       style={{
-        height: "100vh",
+        minHeight: "70vh",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -36,40 +36,66 @@ export default function Login() {
     >
       <form
         onSubmit={handleSubmit}
+        className="card"
         style={{
           display: "grid",
-          gap: 10,
-          width: 320,
-          padding: 24,
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-          background: "var(--card)",
+          gap: "var(--space-3)",
+          width: 340,
+          padding: "var(--space-5)",
         }}
       >
-        <h2 style={{ margin: 0 }}>Log In</h2>
+        <div>
+          <div style={{ fontWeight: 800, color: "var(--accentText)", fontSize: "var(--font-size-lg)" }}>HealthVault</div>
+          <h2 style={{ margin: "var(--space-1) 0 0", fontSize: "var(--font-size-xl)" }}>Log In</h2>
+          <p className="muted" style={{ fontSize: "var(--font-size-sm)", marginTop: "var(--space-1)" }}>
+            Welcome back. Enter your details to continue.
+          </p>
+        </div>
 
-        {error && <div style={{ color: "crimson", fontSize: 14 }}>{error}</div>}
+        {error && (
+          <div
+            role="alert"
+            style={{
+              background: "var(--dangerSurface)",
+              color: "var(--danger)",
+              borderRadius: "var(--radius-sm)",
+              padding: "var(--space-2) var(--space-3)",
+              fontSize: "var(--font-size-sm)",
+            }}
+          >
+            {error}
+          </div>
+        )}
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+        <div style={{ display: "grid", gap: "var(--space-1)" }}>
+          <label htmlFor="login-email">Email</label>
+          <input
+            id="login-email"
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
 
-        <button type="submit" disabled={loading} style={{ padding: "10px 20px", fontSize: 16, borderRadius: 10 }}>
+        <div style={{ display: "grid", gap: "var(--space-1)" }}>
+          <label htmlFor="login-password">Password</label>
+          <input
+            id="login-password"
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+
+        <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: "var(--space-1)" }}>
           {loading ? "Logging in…" : "Log In"}
         </button>
 
-        <div style={{ fontSize: 14, textAlign: "center" }}>
+        <div className="muted" style={{ fontSize: "var(--font-size-sm)", textAlign: "center" }}>
           No account? <Link to="/signup">Sign up</Link>
         </div>
       </form>

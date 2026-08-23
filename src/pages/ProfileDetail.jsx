@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axiosInstance";
+import EmptyState from "../components/EmptyState";
 
 function MedCard({ m }) {
   const start = m.startDate ? new Date(m.startDate).toLocaleDateString() : "—";
   const end = m.endDate ? new Date(m.endDate).toLocaleDateString() : "—";
   const ongoing = !m.endDate;
   return (
-    <li style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12, background: "var(--card)" }}>
-      <div style={{ fontWeight: 700, color: "var(--text)" }}>{m.name}</div>
-      <div style={{ color: "var(--muted)" }}>{m.dosage} • {m.frequency}</div>
-      <div style={{ fontSize: 12, color: "var(--muted)" }}>
-        From {start} to {end} {ongoing ? "(ongoing)" : ""}
+    <li className="card" style={{ padding: "var(--space-3)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-2)" }}>
+        <div style={{ fontWeight: 700 }}>{m.name}</div>
+        {ongoing && <span className="badge">Ongoing</span>}
       </div>
-      {m.notes ? <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>Notes: {m.notes}</div> : null}
+      <div className="muted" style={{ fontSize: "var(--font-size-sm)" }}>{m.dosage} • {m.frequency}</div>
+      <div className="muted" style={{ fontSize: "var(--font-size-xs)", marginTop: "var(--space-1)" }}>
+        From {start} to {end}
+      </div>
+      {m.notes ? <div className="muted" style={{ fontSize: "var(--font-size-xs)", marginTop: "var(--space-1)" }}>Notes: {m.notes}</div> : null}
     </li>
   );
 }
@@ -106,8 +110,14 @@ export default function ProfileDetail() {
     }
   };
 
-  if (notFound) return <p style={{ marginTop: "1rem" }}>Profile not found.</p>;
-  if (loading || !profile) return <p style={{ marginTop: "1rem" }}>Loading…</p>;
+  if (notFound) {
+    return (
+      <div style={{ marginTop: "var(--space-5)" }}>
+        <EmptyState title="Profile not found" message="It may have been deleted, or it doesn't belong to your account." />
+      </div>
+    );
+  }
+  if (loading || !profile) return <p className="muted" style={{ marginTop: "var(--space-4)" }}>Loading…</p>;
 
   const dob = profile.dob ? new Date(profile.dob).toLocaleDateString() : "—";
   const age = profile.dob
@@ -115,91 +125,108 @@ export default function ProfileDetail() {
     : "—";
 
   return (
-    <section style={{ marginTop: "1rem", display: "grid", gap: "1rem" }}>
-      <h2>{profile.name}</h2>
-      <div style={{ color: "var(--muted)" }}>
-        DOB: {dob} • Age: {age} • Gender: {profile.gender} • Blood: {profile.bloodGroup}
+    <section style={{ display: "grid", gap: "var(--space-5)" }}>
+      {/* Profile summary */}
+      <div className="card" style={{ padding: "var(--space-4)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "var(--space-3)" }}>
+        <div>
+          <h2 style={{ fontSize: "var(--font-size-2xl)", margin: 0 }}>{profile.name}</h2>
+          <div className="muted" style={{ marginTop: "var(--space-1)", fontSize: "var(--font-size-sm)" }}>
+            DOB {dob} • Age {age}
+          </div>
+          <div style={{ display: "flex", gap: "var(--space-1)", marginTop: "var(--space-2)" }}>
+            <span className="badge">{profile.gender}</span>
+            <span className="badge">{profile.bloodGroup}</span>
+          </div>
+        </div>
+        <button onClick={deleteProfileAndData} className="btn-danger-outline">
+          Delete Profile
+        </button>
       </div>
 
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      {/* Tabs */}
+      <div
+        role="tablist"
+        aria-label="Medicine view"
+        style={{ display: "inline-flex", gap: 2, padding: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", width: "fit-content" }}
+      >
         <button
+          role="tab"
+          aria-selected={!viewHistory}
           onClick={() => setViewHistory(false)}
           style={{
-            padding: "0.5rem 0.9rem",
-            borderRadius: 10,
-            background: viewHistory ? "var(--card)" : "var(--accent)",
-            border: "1px solid var(--border)",
-            fontWeight: 600,
+            padding: "0.45rem 0.9rem",
+            borderRadius: "var(--radius-sm)",
+            background: viewHistory ? "transparent" : "var(--accent)",
+            color: viewHistory ? "var(--muted)" : "var(--accentText)",
+            border: "none",
           }}
         >
           Current Medicines
         </button>
         <button
+          role="tab"
+          aria-selected={viewHistory}
           onClick={() => setViewHistory(true)}
           style={{
-            padding: "0.5rem 0.9rem",
-            borderRadius: 10,
-            background: viewHistory ? "var(--accent)" : "var(--card)",
-            border: "1px solid var(--border)",
-            fontWeight: 600,
+            padding: "0.45rem 0.9rem",
+            borderRadius: "var(--radius-sm)",
+            background: viewHistory ? "var(--accent)" : "transparent",
+            color: viewHistory ? "var(--accentText)" : "var(--muted)",
+            border: "none",
           }}
         >
           Medicine History
         </button>
-
-        <div style={{ flex: 1 }} />
-
-        {/* Delete Profile */}
-        <button
-          onClick={deleteProfileAndData}
-          style={{
-            padding: "0.5rem 0.9rem",
-            borderRadius: 10,
-            border: "1px solid var(--border)",
-            background: "var(--card)",
-            color: "var(--text)",
-          }}
-        >
-          Delete Profile
-        </button>
       </div>
 
       {/* Add Medicine */}
-      <form
-        onSubmit={addMedication}
-        style={{
-          display: "grid",
-          gap: 8,
-          maxWidth: 720,
-          padding: 12,
-          background: "var(--card)",
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-        }}
-      >
-        <strong>Add Medicine</strong>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <input placeholder="Medicine (e.g., Amoxicillin 500mg)" value={name} onChange={(e) => setName(e.target.value)} required />
-          <input placeholder="Dosage (e.g., 1 tab)" value={dosage} onChange={(e) => setDosage(e.target.value)} required />
-          <input placeholder="Frequency (e.g., 2x/day after food)" value={frequency} onChange={(e) => setFrequency(e.target.value)} required />
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
-          <input type="date" value={endDateStr} onChange={(e) => setEndDateStr(e.target.value)} placeholder="End date (optional)" />
-          <input placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
+      <form onSubmit={addMedication} className="card" style={{ display: "grid", gap: "var(--space-3)", maxWidth: 720, padding: "var(--space-4)" }}>
+        <strong style={{ fontSize: "var(--font-size-lg)" }}>Add Medicine</strong>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="med-name">Medicine</label>
+            <input id="med-name" placeholder="e.g., Amoxicillin 500mg" value={name} onChange={(e) => setName(e.target.value)} required />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="med-dosage">Dosage</label>
+            <input id="med-dosage" placeholder="e.g., 1 tab" value={dosage} onChange={(e) => setDosage(e.target.value)} required />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="med-frequency">Frequency</label>
+            <input id="med-frequency" placeholder="e.g., 2x/day after food" value={frequency} onChange={(e) => setFrequency(e.target.value)} required />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="med-start">Start date</label>
+            <input id="med-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="med-end">End date (optional)</label>
+            <input id="med-end" type="date" value={endDateStr} onChange={(e) => setEndDateStr(e.target.value)} />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="med-notes">Notes (optional)</label>
+            <input id="med-notes" placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
         </div>
-        <div style={{ fontSize: 12, color: "var(--muted)" }}>
-          Leave “End date” empty to mark as <strong>ongoing</strong>.
+        <div className="muted" style={{ fontSize: "var(--font-size-xs)" }}>
+          Leave "End date" empty to mark as <strong>ongoing</strong>.
         </div>
-        <button type="submit" style={{ width: "fit-content" }}>Add</button>
+        <button type="submit" className="btn-primary" style={{ width: "fit-content" }}>Add</button>
       </form>
 
       {/* List */}
-      <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 10 }}>
-        {(viewHistory ? historyMeds : currentMeds).map((m) => (
-          <MedCard key={m._id} m={m} />
-        ))}
-      </ul>
-      {!viewHistory && currentMeds.length === 0 && <p style={{ color: "var(--muted)" }}>No current medicines.</p>}
-      {viewHistory && historyMeds.length === 0 && <p style={{ color: "var(--muted)" }}>No history yet.</p>}
+      {(viewHistory ? historyMeds : currentMeds).length === 0 ? (
+        <EmptyState
+          title={viewHistory ? "No history yet" : "No current medicines"}
+          message={viewHistory ? "Medicines with an end date will appear here." : "Add a medicine above to start tracking it."}
+        />
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: "var(--space-2)" }}>
+          {(viewHistory ? historyMeds : currentMeds).map((m) => (
+            <MedCard key={m._id} m={m} />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

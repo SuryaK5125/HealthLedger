@@ -2,18 +2,20 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const linkStyle = ({ isActive }) => ({
-  padding: "0.55rem 0.9rem",
-  borderRadius: 10,
+  padding: "0.5rem 0.85rem",
+  borderRadius: "var(--radius-sm)",
   textDecoration: "none",
   fontWeight: 600,
+  fontSize: "var(--font-size-sm)",
   background: isActive ? "var(--accent)" : "transparent",
-  color: isActive ? "var(--accentText)" : "var(--text)",
-  marginRight: "0.4rem",
+  color: isActive ? "var(--accentText)" : "var(--muted)",
+  marginRight: "0.25rem",
   whiteSpace: "nowrap",
+  transition: "background 0.15s ease, color 0.15s ease",
 });
 
 export default function Navbar() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleSignOut = async () => {
     try {
@@ -30,23 +32,28 @@ export default function Navbar() {
         position: "sticky",
         top: 0,
         zIndex: 10,
+        background: "var(--bg)",
         backdropFilter: "saturate(180%) blur(6px)",
-        marginBottom: "0.75rem",
+        marginBottom: "var(--space-5)",
+        marginLeft: "calc(-1 * var(--space-6))",
+        marginRight: "calc(-1 * var(--space-6))",
+        paddingLeft: "var(--space-6)",
+        paddingRight: "var(--space-6)",
       }}
     >
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "0.6rem",
-          padding: "0.5rem 0",
+          gap: "var(--space-2)",
+          padding: "var(--space-3) 0",
         }}
       >
-        <div style={{ fontSize: 20, fontWeight: 800, marginRight: 8 }}>
+        <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 800, marginRight: "var(--space-3)", color: "var(--accentText)" }}>
           HealthVault
         </div>
 
-        <nav style={{ display: "flex", alignItems: "center", overflowX: "auto" }}>
+        <nav style={{ display: "flex", alignItems: "center", overflowX: "auto", gap: 2 }} aria-label="Main navigation">
           <NavLink to="/dashboard" style={linkStyle}>Dashboard</NavLink>
           <NavLink to="/profiles" style={linkStyle}>Profiles</NavLink>
           <NavLink to="/records" style={linkStyle}>Records</NavLink>
@@ -56,21 +63,27 @@ export default function Navbar() {
 
         <div style={{ flex: 1 }} />
 
+        {user?.name && (
+          <span className="muted" style={{ fontSize: "var(--font-size-sm)", marginRight: "var(--space-2)" }}>
+            {user.name}
+          </span>
+        )}
+
         <button
           onClick={handleSignOut}
           style={{
-            padding: "0.45rem 0.8rem",
-            borderRadius: 10,
+            padding: "0.45rem 0.9rem",
+            borderRadius: "var(--radius-sm)",
             border: "1px solid var(--border)",
             background: "var(--card)",
             color: "var(--text)",
-            cursor: "pointer",
+            fontSize: "var(--font-size-sm)",
           }}
         >
           Sign Out
         </button>
       </div>
-      <hr style={{ border: 0, borderTop: "1px solid var(--border)", margin: 0 }} />
+      <div style={{ borderTop: "1px solid var(--border)" }} />
     </header>
   );
 }

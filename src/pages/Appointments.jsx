@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axiosInstance";
+import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
 
 export default function Appointments() {
   const [appts, setAppts] = useState([]);
@@ -61,39 +63,67 @@ export default function Appointments() {
   };
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
-      <h2>Appointments</h2>
+    <div style={{ display: "grid", gap: "var(--space-5)" }}>
+      <PageHeader title="Appointments" subtitle="Schedule and track upcoming visits for the whole family." />
 
       {/* Add appointment */}
-      <form onSubmit={addAppt} className="card" style={{ padding: 12, display: "grid", gap: 8, maxWidth: 800 }}>
-        <strong>Schedule New</strong>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <select value={profileId} onChange={e=>setProfileId(e.target.value)} required>
-            <option value="">Select profile</option>
-            {profiles.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
-          </select>
-          <input placeholder="Doctor" value={doctor} onChange={e=>setDoctor(e.target.value)} required />
-          <input placeholder="Specialty (e.g., ENT)" value={specialty} onChange={e=>setSpecialty(e.target.value)} />
-          <input placeholder="Location / Hospital" value={location} onChange={e=>setLocation(e.target.value)} />
-          <input type="date" value={dateStr} onChange={e=>setDateStr(e.target.value)} required />
-          <input type="time" value={timeStr} onChange={e=>setTimeStr(e.target.value)} required />
-          <input placeholder="Notes (optional)" value={notes} onChange={e=>setNotes(e.target.value)} />
+      <form onSubmit={addAppt} className="card" style={{ padding: "var(--space-4)", display: "grid", gap: "var(--space-3)", maxWidth: 800 }}>
+        <strong style={{ fontSize: "var(--font-size-lg)" }}>Schedule New</strong>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="appt-profile">Profile</label>
+            <select id="appt-profile" value={profileId} onChange={e=>setProfileId(e.target.value)} required>
+              <option value="">Select profile</option>
+              {profiles.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="appt-doctor">Doctor</label>
+            <input id="appt-doctor" placeholder="Doctor" value={doctor} onChange={e=>setDoctor(e.target.value)} required />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="appt-specialty">Specialty</label>
+            <input id="appt-specialty" placeholder="e.g., ENT" value={specialty} onChange={e=>setSpecialty(e.target.value)} />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="appt-location">Location / Hospital</label>
+            <input id="appt-location" placeholder="Location / Hospital" value={location} onChange={e=>setLocation(e.target.value)} />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="appt-date">Date</label>
+            <input id="appt-date" type="date" value={dateStr} onChange={e=>setDateStr(e.target.value)} required />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="appt-time">Time</label>
+            <input id="appt-time" type="time" value={timeStr} onChange={e=>setTimeStr(e.target.value)} required />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)", gridColumn: "1 / -1" }}>
+            <label htmlFor="appt-notes">Notes (optional)</label>
+            <input id="appt-notes" placeholder="Notes" value={notes} onChange={e=>setNotes(e.target.value)} />
+          </div>
         </div>
-        <button type="submit" style={{ width: "fit-content" }}>Add</button>
+        <button type="submit" className="btn-primary" style={{ width: "fit-content" }}>Add</button>
       </form>
 
       {/* Upcoming list */}
-      <section className="card" style={{ padding: 12 }}>
-        <h3 style={{ marginTop: 0 }}>Upcoming</h3>
-        {loading ? <p>Loading…</p> : appts.length === 0 ? <p className="muted">No upcoming appointments.</p> : (
-          <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 8 }}>
+      <section className="card" style={{ padding: "var(--space-4)" }}>
+        <h3 style={{ marginTop: 0, marginBottom: "var(--space-3)", fontSize: "var(--font-size-lg)" }}>Upcoming</h3>
+        {loading ? (
+          <p className="muted">Loading…</p>
+        ) : appts.length === 0 ? (
+          <EmptyState title="No upcoming appointments" message="Schedule one above to see it here." />
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: "var(--space-2)" }}>
             {appts.map(a => (
-              <li key={a._id} className="card" style={{ padding: 10, display: "grid", gap: 4 }}>
-                <div style={{ fontWeight: 700 }}>{a.doctor} {a.specialty ? `• ${a.specialty}` : ""}</div>
-                <div className="muted" style={{ fontSize: 12 }}>
-                  {a.location || "—"} • {new Date(a.date).toLocaleString()} • {profiles.find(p=>p._id===a.profileId)?.name || a.profileId}
+              <li key={a._id} style={{ padding: "var(--space-3)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", display: "grid", gap: "var(--space-1)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--space-1)" }}>
+                  <div style={{ fontWeight: 700 }}>{a.doctor} {a.specialty ? `• ${a.specialty}` : ""}</div>
+                  <span className="badge">{profiles.find(p=>p._id===a.profileId)?.name || "—"}</span>
                 </div>
-                {a.notes && <div style={{ fontSize: 12 }}>{a.notes}</div>}
+                <div className="muted" style={{ fontSize: "var(--font-size-sm)" }}>
+                  {a.location || "—"} • {new Date(a.date).toLocaleString()}
+                </div>
+                {a.notes && <div style={{ fontSize: "var(--font-size-sm)" }}>{a.notes}</div>}
               </li>
             ))}
           </ul>

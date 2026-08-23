@@ -23,7 +23,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div style={{ padding: "1rem 2rem", maxWidth: 1100, margin: "0 auto" }}>
+      <div className="page-container">
         {user && <Navbar />}
 
         <Routes>

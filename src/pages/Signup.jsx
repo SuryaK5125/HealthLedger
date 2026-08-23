@@ -32,7 +32,7 @@ export default function Signup() {
   return (
     <div
       style={{
-        height: "100vh",
+        minHeight: "70vh",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -40,47 +40,78 @@ export default function Signup() {
     >
       <form
         onSubmit={handleSubmit}
+        className="card"
         style={{
           display: "grid",
-          gap: 10,
-          width: 320,
-          padding: 24,
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-          background: "var(--card)",
+          gap: "var(--space-3)",
+          width: 340,
+          padding: "var(--space-5)",
         }}
       >
-        <h2 style={{ margin: 0 }}>Create Account</h2>
+        <div>
+          <div style={{ fontWeight: 800, color: "var(--accentText)", fontSize: "var(--font-size-lg)" }}>HealthVault</div>
+          <h2 style={{ margin: "var(--space-1) 0 0", fontSize: "var(--font-size-xl)" }}>Create Account</h2>
+          <p className="muted" style={{ fontSize: "var(--font-size-sm)", marginTop: "var(--space-1)" }}>
+            Set up a family health record in a minute.
+          </p>
+        </div>
 
-        {error && <div style={{ color: "crimson", fontSize: 14 }}>{error}</div>}
+        {error && (
+          <div
+            role="alert"
+            style={{
+              background: "var(--dangerSurface)",
+              color: "var(--danger)",
+              borderRadius: "var(--radius-sm)",
+              padding: "var(--space-2) var(--space-3)",
+              fontSize: "var(--font-size-sm)",
+            }}
+          >
+            {error}
+          </div>
+        )}
 
-        <input
-          placeholder="Full name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password (min. 8 characters)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={8}
-        />
+        <div style={{ display: "grid", gap: "var(--space-1)" }}>
+          <label htmlFor="signup-name">Full name</label>
+          <input
+            id="signup-name"
+            placeholder="Jane Doe"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
 
-        <button type="submit" disabled={loading} style={{ padding: "10px 20px", fontSize: 16, borderRadius: 10 }}>
+        <div style={{ display: "grid", gap: "var(--space-1)" }}>
+          <label htmlFor="signup-email">Email</label>
+          <input
+            id="signup-email"
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+
+        <div style={{ display: "grid", gap: "var(--space-1)" }}>
+          <label htmlFor="signup-password">Password</label>
+          <input
+            id="signup-password"
+            type="password"
+            placeholder="Min. 8 characters"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={8}
+          />
+        </div>
+
+        <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: "var(--space-1)" }}>
           {loading ? "Creating account…" : "Sign Up"}
         </button>
 
-        <div style={{ fontSize: 14, textAlign: "center" }}>
+        <div className="muted" style={{ fontSize: "var(--font-size-sm)", textAlign: "center" }}>
           Already have an account? <Link to="/login">Log in</Link>
         </div>
       </form>

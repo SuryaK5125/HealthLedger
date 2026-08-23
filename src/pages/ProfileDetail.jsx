@@ -1,32 +1,23 @@
-// src/pages/ProfileDetail.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { db } from "../firebase";
-import {
-  doc,
-  getDoc,
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  orderBy,
-  Timestamp,
-  writeBatch,
-  deleteDoc,
-  where,
-} from "firebase/firestore";
+import api from "../api/axiosInstance";
+import EmptyState from "../components/EmptyState";
 
 function MedCard({ m }) {
-  const start = m.startDate?.toDate?.()?.toLocaleDateString?.() || "—";
-  const end = m.endDate ? m.endDate.toDate().toLocaleDateString() : "—";
+  const start = m.startDate ? new Date(m.startDate).toLocaleDateString() : "—";
+  const end = m.endDate ? new Date(m.endDate).toLocaleDateString() : "—";
+  const ongoing = !m.endDate;
   return (
-    <li style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12, background: "var(--card)" }}>
-      <div style={{ fontWeight: 700, color: "var(--text)" }}>{m.name}</div>
-      <div style={{ color: "var(--muted)" }}>{m.dosage} • {m.frequency}</div>
-      <div style={{ fontSize: 12, color: "var(--muted)" }}>
-        From {start} to {end} {m.ongoing ? "(ongoing)" : ""}
+    <li className="card" style={{ padding: "var(--space-3)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-2)" }}>
+        <div style={{ fontWeight: 700 }}>{m.name}</div>
+        {ongoing && <span className="badge">Ongoing</span>}
       </div>
-      {m.notes ? <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>Notes: {m.notes}</div> : null}
+      <div className="muted" style={{ fontSize: "var(--font-size-sm)" }}>{m.dosage} • {m.frequency}</div>
+      <div className="muted" style={{ fontSize: "var(--font-size-xs)", marginTop: "var(--space-1)" }}>
+        From {start} to {end}
+      </div>
+      {m.notes ? <div className="muted" style={{ fontSize: "var(--font-size-xs)", marginTop: "var(--space-1)" }}>Notes: {m.notes}</div> : null}
     </li>
   );
 }
@@ -39,6 +30,7 @@ export default function ProfileDetail() {
   const [viewHistory, setViewHistory] = useState(false);
   const [meds, setMeds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   // add-med form
   const [name, setName] = useState("");
@@ -46,27 +38,34 @@ export default function ProfileDetail() {
   const [frequency, setFrequency] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDateStr, setEndDateStr] = useState(""); // optional
+
   const [notes, setNotes] = useState("");
-  const ongoing = !endDateStr; // if endDate empty → ongoing
 
   useEffect(() => {
     (async () => {
-      // profile
-      const snap = await getDoc(doc(db, "profiles", id));
-      setProfile({ id: snap.id, ...snap.data() });
-
-      // medications
-      const medsRef = collection(db, "profiles", id, "medications");
-      const qMeds = query(medsRef, orderBy("createdAt", "desc"));
-      const msnap = await getDocs(qMeds);
-      const rows = msnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setMeds(rows);
-      setLoading(false);
+      try {
+        const [profileRes, medsRes] = await Promise.all([
+          api.get(`/profiles/${id}`),
+          api.get(`/medications`, { params: { profileId: id } }),
+        ]);
+        setProfile(profileRes.data);
+        setMeds(medsRes.data);
+      } catch (err) {
+        // 404 covers both "doesn't exist" and "belongs to someone else" —
+        // from the UI's perspective those are the same case.
+        if (err.response?.status === 404) setNotFound(true);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [id]);
 
-  const currentMeds = useMemo(() => meds.filter((m) => m.ongoing === true), [meds]);
-  const historyMeds = useMemo(() => meds.filter((m) => m.ongoing === false), [meds]);
+  // The backend does not store an "ongoing" flag — a medication with no end
+  // date is current, one with a past or present end date is history. This
+  // mirrors the original form's behaviour of leaving end date blank to mean
+  // ongoing.
+  const currentMeds = useMemo(() => meds.filter((m) => !m.endDate), [meds]);
+  const historyMeds = useMemo(() => meds.filter((m) => !!m.endDate), [meds]);
 
   const addMedication = async (e) => {
     e.preventDefault();
@@ -74,191 +73,160 @@ export default function ProfileDetail() {
       alert("Fill required fields");
       return;
     }
-    const medsRef = collection(db, "profiles", id, "medications");
-    await addDoc(medsRef, {
-      name,
-      dosage,
-      frequency,
-      startDate: Timestamp.fromDate(new Date(startDate)),
-      endDate: endDateStr ? Timestamp.fromDate(new Date(endDateStr)) : null,
-      ongoing,
-      notes,
-      createdAt: Timestamp.now(),
-    });
-
-    // refresh list
-    const qMeds = query(medsRef, orderBy("createdAt", "desc"));
-    const msnap = await getDocs(qMeds);
-    setMeds(msnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-
-    // reset form
-    setName("");
-    setDosage("");
-    setFrequency("");
-    setStartDate("");
-    setEndDateStr("");
-    setNotes("");
-  };
-
-  // Delete profile + all medications (+ optional related records)
-  const deleteProfileAndData = async () => {
-    if (!window.confirm(`Delete ${profile?.name}'s profile and all medications? This cannot be undone.`)) return;
-
     try {
-      // 1) Delete medications (subcollection) in batches
-      const medsRef = collection(db, "profiles", id, "medications");
-      const medsSnap = await getDocs(medsRef);
-      if (!medsSnap.empty) {
-        let chunk = [];
-        for (const d of medsSnap.docs) {
-          chunk.push(d.ref);
-          if (chunk.length === 400) {
-            const batch = writeBatch(db);
-            chunk.forEach((ref) => batch.delete(ref));
-            await batch.commit();
-            chunk = [];
-          }
-        }
-        if (chunk.length) {
-          const batch = writeBatch(db);
-          chunk.forEach((ref) => batch.delete(ref));
-          await batch.commit();
-        }
-      }
-
-      // 2) Optional: delete related records if you store profileId on them
-      try {
-        const recordsRef = collection(db, "records");
-        const recQ = query(recordsRef, where("forWho", "==", profile.name));
-        const recSnap = await getDocs(recQ);
-        if (!recSnap.empty) {
-          let chunk = [];
-          for (const d of recSnap.docs) {
-            chunk.push(d.ref);
-            if (chunk.length === 400) {
-              const batch = writeBatch(db);
-              chunk.forEach((ref) => batch.delete(ref));
-              await batch.commit();
-              chunk = [];
-            }
-          }
-          if (chunk.length) {
-            const batch = writeBatch(db);
-            chunk.forEach((ref) => batch.delete(ref));
-            await batch.commit();
-          }
-        }
-      } catch {
-        // If your records use `forWho` instead of profileId, switch to:
-        // const recQ = query(recordsRef, where("forWho", "==", profile.name));
-      }
-
-      // 3) Delete the profile doc
-      await deleteDoc(doc(db, "profiles", id));
-
-      alert("Profile deleted.");
-      navigate("/profiles");
-    } catch (e) {
-      console.error("Failed to delete profile:", e);
-      alert("Failed to delete profile. Check console for details.");
+      const res = await api.post("/medications", {
+        profileId: id,
+        name,
+        dosage,
+        frequency,
+        startDate,
+        endDate: endDateStr || null,
+        notes,
+      });
+      setMeds((prev) => [res.data, ...prev]);
+      setName("");
+      setDosage("");
+      setFrequency("");
+      setStartDate("");
+      setEndDateStr("");
+      setNotes("");
+    } catch (err) {
+      alert(err.response?.data?.details?.[0]?.message || err.response?.data?.message || "Failed to add medication");
     }
   };
 
-  if (loading || !profile) return <p style={{ marginTop: "1rem" }}>Loading…</p>;
+  // The backend now cascades this in one transaction (medications, records
+  // and appointments for the profile, plus their Cloudinary assets) — the
+  // client no longer has to orchestrate the batched deletes itself.
+  const deleteProfileAndData = async () => {
+    if (!window.confirm(`Delete ${profile?.name}'s profile and all related data? This cannot be undone.`)) return;
 
-  const dob = profile.dob?.toDate?.()?.toLocaleDateString?.() || "—";
-  const age = (() => {
-    const d = profile.dob?.toDate?.();
-    if (!d) return "—";
-    return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000));
-  })();
+    try {
+      await api.delete(`/profiles/${id}`);
+      navigate("/profiles");
+    } catch (err) {
+      console.error("Failed to delete profile:", err);
+      alert("Failed to delete profile.");
+    }
+  };
+
+  if (notFound) {
+    return (
+      <div style={{ marginTop: "var(--space-5)" }}>
+        <EmptyState title="Profile not found" message="It may have been deleted, or it doesn't belong to your account." />
+      </div>
+    );
+  }
+  if (loading || !profile) return <p className="muted" style={{ marginTop: "var(--space-4)" }}>Loading…</p>;
+
+  const dob = profile.dob ? new Date(profile.dob).toLocaleDateString() : "—";
+  const age = profile.dob
+    ? Math.floor((Date.now() - new Date(profile.dob).getTime()) / (365.25 * 24 * 3600 * 1000))
+    : "—";
 
   return (
-    <section style={{ marginTop: "1rem", display: "grid", gap: "1rem" }}>
-      <h2>{profile.name}</h2>
-      <div style={{ color: "var(--muted)" }}>
-        DOB: {dob} • Age: {age} • Gender: {profile.gender} • Blood: {profile.bloodGroup}
+    <section style={{ display: "grid", gap: "var(--space-5)" }}>
+      {/* Profile summary */}
+      <div className="card" style={{ padding: "var(--space-4)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "var(--space-3)" }}>
+        <div>
+          <h2 style={{ fontSize: "var(--font-size-2xl)", margin: 0 }}>{profile.name}</h2>
+          <div className="muted" style={{ marginTop: "var(--space-1)", fontSize: "var(--font-size-sm)" }}>
+            DOB {dob} • Age {age}
+          </div>
+          <div style={{ display: "flex", gap: "var(--space-1)", marginTop: "var(--space-2)" }}>
+            <span className="badge">{profile.gender}</span>
+            <span className="badge">{profile.bloodGroup}</span>
+          </div>
+        </div>
+        <button onClick={deleteProfileAndData} className="btn-danger-outline">
+          Delete Profile
+        </button>
       </div>
 
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      {/* Tabs */}
+      <div
+        role="tablist"
+        aria-label="Medicine view"
+        style={{ display: "inline-flex", gap: 2, padding: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", width: "fit-content" }}
+      >
         <button
+          role="tab"
+          aria-selected={!viewHistory}
           onClick={() => setViewHistory(false)}
           style={{
-            padding: "0.5rem 0.9rem",
-            borderRadius: 10,
-            background: viewHistory ? "var(--card)" : "var(--accent)",
-            border: "1px solid var(--border)",
-            fontWeight: 600,
+            padding: "0.45rem 0.9rem",
+            borderRadius: "var(--radius-sm)",
+            background: viewHistory ? "transparent" : "var(--accent)",
+            color: viewHistory ? "var(--muted)" : "var(--accentText)",
+            border: "none",
           }}
         >
           Current Medicines
         </button>
         <button
+          role="tab"
+          aria-selected={viewHistory}
           onClick={() => setViewHistory(true)}
           style={{
-            padding: "0.5rem 0.9rem",
-            borderRadius: 10,
-            background: viewHistory ? "var(--accent)" : "var(--card)",
-            border: "1px solid var(--border)",
-            fontWeight: 600,
+            padding: "0.45rem 0.9rem",
+            borderRadius: "var(--radius-sm)",
+            background: viewHistory ? "var(--accent)" : "transparent",
+            color: viewHistory ? "var(--accentText)" : "var(--muted)",
+            border: "none",
           }}
         >
           Medicine History
         </button>
-
-        <div style={{ flex: 1 }} />
-
-        {/* Delete Profile */}
-        <button
-          onClick={deleteProfileAndData}
-          style={{
-            padding: "0.5rem 0.9rem",
-            borderRadius: 10,
-            border: "1px solid var(--border)",
-            background: "var(--card)",
-            color: "var(--text)",
-          }}
-        >
-          Delete Profile
-        </button>
       </div>
 
       {/* Add Medicine */}
-      <form
-        onSubmit={addMedication}
-        style={{
-          display: "grid",
-          gap: 8,
-          maxWidth: 720,
-          padding: 12,
-          background: "var(--card)",
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-        }}
-      >
-        <strong>Add Medicine</strong>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <input placeholder="Medicine (e.g., Amoxicillin 500mg)" value={name} onChange={(e) => setName(e.target.value)} required />
-          <input placeholder="Dosage (e.g., 1 tab)" value={dosage} onChange={(e) => setDosage(e.target.value)} required />
-          <input placeholder="Frequency (e.g., 2x/day after food)" value={frequency} onChange={(e) => setFrequency(e.target.value)} required />
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
-          <input type="date" value={endDateStr} onChange={(e) => setEndDateStr(e.target.value)} placeholder="End date (optional)" />
-          <input placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
+      <form onSubmit={addMedication} className="card" style={{ display: "grid", gap: "var(--space-3)", maxWidth: 720, padding: "var(--space-4)" }}>
+        <strong style={{ fontSize: "var(--font-size-lg)" }}>Add Medicine</strong>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="med-name">Medicine</label>
+            <input id="med-name" placeholder="e.g., Amoxicillin 500mg" value={name} onChange={(e) => setName(e.target.value)} required />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="med-dosage">Dosage</label>
+            <input id="med-dosage" placeholder="e.g., 1 tab" value={dosage} onChange={(e) => setDosage(e.target.value)} required />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="med-frequency">Frequency</label>
+            <input id="med-frequency" placeholder="e.g., 2x/day after food" value={frequency} onChange={(e) => setFrequency(e.target.value)} required />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="med-start">Start date</label>
+            <input id="med-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="med-end">End date (optional)</label>
+            <input id="med-end" type="date" value={endDateStr} onChange={(e) => setEndDateStr(e.target.value)} />
+          </div>
+          <div style={{ display: "grid", gap: "var(--space-1)" }}>
+            <label htmlFor="med-notes">Notes (optional)</label>
+            <input id="med-notes" placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
         </div>
-        <div style={{ fontSize: 12, color: "var(--muted)" }}>
-          Leave “End date” empty to mark as <strong>ongoing</strong>.
+        <div className="muted" style={{ fontSize: "var(--font-size-xs)" }}>
+          Leave "End date" empty to mark as <strong>ongoing</strong>.
         </div>
-        <button type="submit" style={{ width: "fit-content" }}>Add</button>
+        <button type="submit" className="btn-primary" style={{ width: "fit-content" }}>Add</button>
       </form>
 
       {/* List */}
-      <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 10 }}>
-        {(viewHistory ? historyMeds : currentMeds).map((m) => (
-          <MedCard key={m.id} m={m} />
-        ))}
-      </ul>
-      {!viewHistory && currentMeds.length === 0 && <p style={{ color: "var(--muted)" }}>No current medicines.</p>}
-      {viewHistory && historyMeds.length === 0 && <p style={{ color: "var(--muted)" }}>No history yet.</p>}
+      {(viewHistory ? historyMeds : currentMeds).length === 0 ? (
+        <EmptyState
+          title={viewHistory ? "No history yet" : "No current medicines"}
+          message={viewHistory ? "Medicines with an end date will appear here." : "Add a medicine above to start tracking it."}
+        />
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: "var(--space-2)" }}>
+          {(viewHistory ? historyMeds : currentMeds).map((m) => (
+            <MedCard key={m._id} m={m} />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

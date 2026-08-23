@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-export default function Login() {
-  const { login } = useAuth();
+export default function Signup() {
+  const { signup } = useAuth();
   const navigate = useNavigate();
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -16,10 +17,13 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      await signup(email, password, name);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      // express-validator returns { message, details: [{field, message}] } on 400
+      const details = err.response?.data?.details;
+      const message = details?.[0]?.message || err.response?.data?.message || "Signup failed";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -46,9 +50,9 @@ export default function Login() {
       >
         <div>
           <div style={{ fontWeight: 800, color: "var(--accentText)", fontSize: "var(--font-size-lg)" }}>HealthVault</div>
-          <h2 style={{ margin: "var(--space-1) 0 0", fontSize: "var(--font-size-xl)" }}>Log In</h2>
+          <h2 style={{ margin: "var(--space-1) 0 0", fontSize: "var(--font-size-xl)" }}>Create Account</h2>
           <p className="muted" style={{ fontSize: "var(--font-size-sm)", marginTop: "var(--space-1)" }}>
-            Welcome back. Enter your details to continue.
+            Set up a family health record in a minute.
           </p>
         </div>
 
@@ -68,9 +72,20 @@ export default function Login() {
         )}
 
         <div style={{ display: "grid", gap: "var(--space-1)" }}>
-          <label htmlFor="login-email">Email</label>
+          <label htmlFor="signup-name">Full name</label>
           <input
-            id="login-email"
+            id="signup-name"
+            placeholder="Jane Doe"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
+
+        <div style={{ display: "grid", gap: "var(--space-1)" }}>
+          <label htmlFor="signup-email">Email</label>
+          <input
+            id="signup-email"
             type="email"
             placeholder="you@example.com"
             value={email}
@@ -80,23 +95,24 @@ export default function Login() {
         </div>
 
         <div style={{ display: "grid", gap: "var(--space-1)" }}>
-          <label htmlFor="login-password">Password</label>
+          <label htmlFor="signup-password">Password</label>
           <input
-            id="login-password"
+            id="signup-password"
             type="password"
-            placeholder="••••••••"
+            placeholder="Min. 8 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            minLength={8}
           />
         </div>
 
         <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: "var(--space-1)" }}>
-          {loading ? "Logging in…" : "Log In"}
+          {loading ? "Creating account…" : "Sign Up"}
         </button>
 
         <div className="muted" style={{ fontSize: "var(--font-size-sm)", textAlign: "center" }}>
-          No account? <Link to="/signup">Sign up</Link>
+          Already have an account? <Link to="/login">Log in</Link>
         </div>
       </form>
     </div>

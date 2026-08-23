@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { db } from "../firebase";
-import {
-  collection, getDocs, query, orderBy, limit, where, Timestamp
-} from "firebase/firestore";
 import { Link } from "react-router-dom";
+import api from "../api/axiosInstance";
 
 function Section({ title, children }) {
   return (
@@ -16,60 +13,57 @@ function Section({ title, children }) {
 
 export default function Dashboard() {
   const [profiles, setProfiles] = useState([]);
-  const [reminders, setReminders] = useState([]);
   const [recentRecords, setRecentRecords] = useState([]);
   const [upcomingAppts, setUpcomingAppts] = useState([]);
+  const [currentMedCount, setCurrentMedCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      // Profiles
-      const ps = await getDocs(query(collection(db, "profiles"), orderBy("createdAt", "desc")));
-      setProfiles(ps.docs.map(d => ({ id: d.id, ...d.data() })));
+      const profilesRes = await api.get("/profiles");
+      const profileList = profilesRes.data;
+      setProfiles(profileList);
 
-      // Reminders (next 7 days & not done)
-      const now = new Date();
-      const in7 = new Date(Date.now() + 7 * 24 * 3600 * 1000);
-      const remQ = query(
-        collection(db, "reminders"),
-        where("dueDate", ">=", Timestamp.fromDate(now)),
-        where("dueDate", "<=", Timestamp.fromDate(in7)),
-        where("done", "==", false),
-        orderBy("dueDate", "asc"),
-        limit(10)
-      );
-      const rs = await getDocs(remQ);
-      setReminders(rs.docs.map(d => ({ id: d.id, ...d.data() })));
+      // The backend scopes appointments/records/medications lists to one
+      // profile at a time, so a dashboard summarising "everything" fans out
+      // one request per profile and merges the results here.
+      const [apptResults, recordResults, medResults] = await Promise.all([
+        Promise.all(profileList.map((p) => api.get("/appointments", { params: { profileId: p._id } }))),
+        Promise.all(profileList.map((p) => api.get("/records", { params: { profileId: p._id } }))),
+        Promise.all(profileList.map((p) => api.get("/medications", { params: { profileId: p._id } }))),
+      ]);
 
-      // Recent activity: last uploads (records) in 7 days
-      const sevenDaysAgo = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 3600 * 1000));
-      const recQ = query(
-        collection(db, "records"),
-        where("timestamp", ">=", sevenDaysAgo),
-        orderBy("timestamp", "desc"),
-        limit(8)
-      );
-      const r = await getDocs(recQ);
-      setRecentRecords(r.docs.map(d => ({ id: d.id, ...d.data() })));
+      const now = Date.now();
+      const upcoming = apptResults
+        .flatMap((r) => r.data)
+        .filter((a) => new Date(a.date).getTime() >= now)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+      setUpcomingAppts(upcoming);
 
-      // Appointments upcoming
-      const apptQ = query(
-        collection(db, "appointments"),
-        where("dateTime", ">=", Timestamp.fromDate(new Date())),
-        orderBy("dateTime", "asc"),
-        limit(5)
-      );
-      const a = await getDocs(apptQ);
-      setUpcomingAppts(a.docs.map(d => ({ id: d.id, ...d.data() })));
+      const sevenDaysAgo = now - 7 * 24 * 3600 * 1000;
+      const recent = recordResults
+        .flatMap((r) => r.data)
+        .filter((rec) => new Date(rec.uploadDate).getTime() >= sevenDaysAgo)
+        .sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
+      setRecentRecords(recent);
+
+      const currentMeds = medResults.flatMap((r) => r.data).filter((m) => !m.endDate);
+      setCurrentMedCount(currentMeds.length);
+
+      setLoading(false);
     })();
   }, []);
 
+  const profileName = (profileId) => profiles.find((p) => p._id === profileId)?.name || "—";
+
   const stats = useMemo(() => {
     const totalProfiles = profiles.length;
-    const totalCurrentMeds = "—"; // optional: compute by querying each profile’s medications where ongoing==true
     const uploadsLast7 = recentRecords.length;
-    const nextAppt = upcomingAppts[0]?.dateTime?.toDate?.()?.toLocaleString?.() || "—";
-    return { totalProfiles, totalCurrentMeds, uploadsLast7, nextAppt };
+    const nextAppt = upcomingAppts[0] ? new Date(upcomingAppts[0].date).toLocaleString() : "—";
+    return { totalProfiles, uploadsLast7, nextAppt };
   }, [profiles, recentRecords, upcomingAppts]);
+
+  if (loading) return <p style={{ marginTop: "1rem" }}>Loading…</p>;
 
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -81,6 +75,9 @@ export default function Dashboard() {
           <div style={{ fontSize: 28, fontWeight: 700 }}>{stats.totalProfiles}</div>
           <Link to="/profiles" className="muted">Manage profiles →</Link>
         </Section>
+        <Section title="Current Medications">
+          <div style={{ fontSize: 28, fontWeight: 700 }}>{currentMedCount}</div>
+        </Section>
         <Section title="Uploads (7d)">
           <div style={{ fontSize: 28, fontWeight: 700 }}>{stats.uploadsLast7}</div>
           <Link to="/records" className="muted">View records →</Link>
@@ -91,34 +88,15 @@ export default function Dashboard() {
         </Section>
       </div>
 
-      {/* Reminders */}
-      <Section title="Upcoming Reminders (7 days)">
-        {reminders.length === 0 ? <div className="muted">No reminders due soon.</div> : (
-          <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 8 }}>
-            {reminders.map(r => (
-              <li key={r.id} className="card" style={{ padding: 8, display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{r.title}</div>
-                  <div className="muted" style={{ fontSize: 12 }}>
-                    {r.type} • {r.dueDate?.toDate?.()?.toLocaleString?.()} • {r.profileId || "—"}
-                  </div>
-                </div>
-                <span className="badge">Due</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
       {/* Recent Activity */}
       <Section title="Recent Activity">
         {recentRecords.length === 0 ? <div className="muted">No recent uploads.</div> : (
           <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 8 }}>
             {recentRecords.map(rec => (
-              <li key={rec.id} className="card" style={{ padding: 8 }}>
+              <li key={rec._id} className="card" style={{ padding: 8 }}>
                 <div style={{ fontWeight: 600 }}>{rec.type || "Record"}</div>
                 <div className="muted" style={{ fontSize: 12 }}>
-                  {(rec.forWho || "—")} • {rec.timestamp?.toDate?.()?.toLocaleString?.()}
+                  {profileName(rec.profileId)} • {new Date(rec.uploadDate).toLocaleString()}
                 </div>
               </li>
             ))}

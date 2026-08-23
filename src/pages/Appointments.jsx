@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
-import { db } from "../firebase";
-import {
-  addDoc, collection, getDocs, orderBy, query, Timestamp, where
-} from "firebase/firestore";
+import api from "../api/axiosInstance";
 
 export default function Appointments() {
   const [appts, setAppts] = useState([]);
@@ -19,23 +16,32 @@ export default function Appointments() {
 
   const [profiles, setProfiles] = useState([]);
 
+  // The backend scopes appointment lists to one profile at a time (ownership
+  // flows through a specific profile, not "all of mine" at once). To show
+  // upcoming appointments across every family member, profiles are fetched
+  // first and then each profile's appointments are fetched in parallel and
+  // merged client-side — a handful of requests at family-app scale, not
+  // worth adding a new backend aggregate endpoint for.
+  const loadUpcoming = async (profileList) => {
+    const results = await Promise.all(
+      profileList.map((p) => api.get("/appointments", { params: { profileId: p._id } }))
+    );
+    const now = Date.now();
+    const merged = results
+      .flatMap((res) => res.data)
+      .filter((a) => new Date(a.date).getTime() >= now)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    setAppts(merged);
+  };
+
   useEffect(() => {
     (async () => {
-      // load profiles for dropdown
-      const ps = await getDocs(query(collection(db, "profiles"), orderBy("createdAt", "desc")));
-      const plist = ps.docs.map(d => ({ id: d.id, ...d.data() }));
-      setProfiles(plist);
-
-      // upcoming appointments
-      const qAppt = query(
-        collection(db, "appointments"),
-        where("dateTime", ">=", Timestamp.fromDate(new Date())),
-        orderBy("dateTime", "asc")
-      );
-      const s = await getDocs(qAppt);
-      setAppts(s.docs.map(d => ({ id: d.id, ...d.data() })));
+      const ps = await api.get("/profiles");
+      setProfiles(ps.data);
+      await loadUpcoming(ps.data);
       setLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const addAppt = async (e) => {
@@ -44,23 +50,14 @@ export default function Appointments() {
       alert("Profile, doctor, date, and time are required.");
       return;
     }
-    const dateTime = new Date(`${dateStr}T${timeStr}:00`);
-    await addDoc(collection(db, "appointments"), {
-      profileId, doctor, specialty, location, notes,
-      dateTime: Timestamp.fromDate(dateTime),
-      status: "scheduled",
-      createdAt: Timestamp.now(),
-    });
-    // refresh
-    const qAppt = query(
-      collection(db, "appointments"),
-      where("dateTime", ">=", Timestamp.fromDate(new Date())),
-      orderBy("dateTime", "asc")
-    );
-    const s = await getDocs(qAppt);
-    setAppts(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    // reset
-    setDoctor(""); setSpecialty(""); setLocation(""); setDateStr(""); setTimeStr(""); setNotes("");
+    const date = new Date(`${dateStr}T${timeStr}:00`).toISOString();
+    try {
+      await api.post("/appointments", { profileId, doctor, specialty, location, notes, date });
+      await loadUpcoming(profiles);
+      setDoctor(""); setSpecialty(""); setLocation(""); setDateStr(""); setTimeStr(""); setNotes("");
+    } catch (err) {
+      alert(err.response?.data?.details?.[0]?.message || err.response?.data?.message || "Failed to add appointment");
+    }
   };
 
   return (
@@ -73,7 +70,7 @@ export default function Appointments() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <select value={profileId} onChange={e=>setProfileId(e.target.value)} required>
             <option value="">Select profile</option>
-            {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {profiles.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
           </select>
           <input placeholder="Doctor" value={doctor} onChange={e=>setDoctor(e.target.value)} required />
           <input placeholder="Specialty (e.g., ENT)" value={specialty} onChange={e=>setSpecialty(e.target.value)} />
@@ -91,10 +88,10 @@ export default function Appointments() {
         {loading ? <p>Loading…</p> : appts.length === 0 ? <p className="muted">No upcoming appointments.</p> : (
           <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 8 }}>
             {appts.map(a => (
-              <li key={a.id} className="card" style={{ padding: 10, display: "grid", gap: 4 }}>
+              <li key={a._id} className="card" style={{ padding: 10, display: "grid", gap: 4 }}>
                 <div style={{ fontWeight: 700 }}>{a.doctor} {a.specialty ? `• ${a.specialty}` : ""}</div>
                 <div className="muted" style={{ fontSize: 12 }}>
-                  {a.location || "—"} • {a.dateTime?.toDate?.()?.toLocaleString?.()} • {profiles.find(p=>p.id===a.profileId)?.name || a.profileId}
+                  {a.location || "—"} • {new Date(a.date).toLocaleString()} • {profiles.find(p=>p._id===a.profileId)?.name || a.profileId}
                 </div>
                 {a.notes && <div style={{ fontSize: 12 }}>{a.notes}</div>}
               </li>

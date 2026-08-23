@@ -1,43 +1,47 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import RequireAuth from "./components/RequireAuth";
 
-// pages
 import Dashboard from "./pages/Dashboard";
 import Profiles from "./pages/Profiles";
 import ProfileDetail from "./pages/ProfileDetail";
 import Appointments from "./pages/Appointments";
 
-// components you already have
 import UploadForm from "./components/UploadForm";
 import RecordsList from "./components/RecordsList";
 
 import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 
 function App() {
   const { user, loading } = useAuth();
 
-  if (loading) return <div>Loading...</div>;
-  if (!user) return <Login />;
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <BrowserRouter>
-        <div style={{ padding: "1rem 2rem", maxWidth: 1100, margin: "0 auto" }}>
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+      <div style={{ padding: "1rem 2rem", maxWidth: 1100, margin: "0 auto" }}>
+        {user && <Navbar />}
 
-            <Route path="/profiles" element={<Profiles />} />
-            <Route path="/profiles/:id" element={<ProfileDetail />} />
+        <Routes>
+          <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
 
-            <Route path="/records" element={<RecordsList />} />
-            <Route path="/upload" element={<UploadForm />} />
+          <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+          <Route path="/signup" element={user ? <Navigate to="/dashboard" replace /> : <Signup />} />
 
-            <Route path="/appointments" element={<Appointments />} />
+          <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+          <Route path="/profiles" element={<RequireAuth><Profiles /></RequireAuth>} />
+          <Route path="/profiles/:id" element={<RequireAuth><ProfileDetail /></RequireAuth>} />
+          <Route path="/upload" element={<RequireAuth><UploadForm /></RequireAuth>} />
+          <Route path="/records" element={<RequireAuth><RecordsList /></RequireAuth>} />
+          <Route path="/appointments" element={<RequireAuth><Appointments /></RequireAuth>} />
 
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </div>
+          <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
+        </Routes>
+      </div>
     </BrowserRouter>
   );
 }

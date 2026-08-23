@@ -1,28 +1,35 @@
-import React, { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../firebase";
+import { useEffect, useState } from "react";
+import api from "../api/axiosInstance";
 
+// Same reasoning as Appointments: the backend lists records per profile, so
+// "all my records" is profiles-fetch-then-fan-out, merged client-side.
 function RecordsList() {
   const [records, setRecords] = useState([]);
+  const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRecords = async () => {
+    (async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, "records"));
-        const data = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setRecords(data);
+        const profilesRes = await api.get("/profiles");
+        setProfiles(profilesRes.data);
+
+        const results = await Promise.all(
+          profilesRes.data.map((p) => api.get("/records", { params: { profileId: p._id } }))
+        );
+        const merged = results
+          .flatMap((res) => res.data)
+          .sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
+        setRecords(merged);
       } catch (err) {
         console.error("Failed to fetch records:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    };
-
-    fetchRecords();
+    })();
   }, []);
+
+  const profileName = (profileId) => profiles.find((p) => p._id === profileId)?.name || "—";
 
   return (
     <div style={{ marginTop: "2rem" }}>
@@ -34,15 +41,22 @@ function RecordsList() {
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
           {records.map((rec) => (
-            <li key={rec.id} style={{ marginBottom: "2rem" }}>
-              <img
-                src={rec.fileURL}
-                alt={rec.type}
-                style={{ width: "250px", borderRadius: "10px" }}
-              />
+            <li key={rec._id} style={{ marginBottom: "2rem" }}>
+              {rec.resourceType === "image" ? (
+                <img
+                  src={rec.cloudinaryUrl}
+                  alt={rec.type}
+                  style={{ width: "250px", borderRadius: "10px" }}
+                />
+              ) : (
+                <a href={rec.cloudinaryUrl} target="_blank" rel="noreferrer">
+                  View file
+                </a>
+              )}
+              <p><strong>For:</strong> {profileName(rec.profileId)}</p>
               <p><strong>Type:</strong> {rec.type}</p>
-              <p><strong>Notes:</strong> {rec.notes}</p>
-              <p><strong>Uploaded:</strong> {rec.timestamp?.toDate?.().toLocaleString()}</p>
+              {rec.notes && <p><strong>Notes:</strong> {rec.notes}</p>}
+              <p><strong>Uploaded:</strong> {new Date(rec.uploadDate).toLocaleString()}</p>
             </li>
           ))}
         </ul>

@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { db } from "../firebase";
-import { collection, addDoc, getDocs, Timestamp, orderBy, query } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import api from "../api/axiosInstance";
 
-function calcAge(dobTs) {
-  const d = dobTs?.toDate?.();
-  if (!d) return "—";
+function calcAge(dobStr) {
+  if (!dobStr) return "—";
+  const d = new Date(dobStr);
   const diff = Date.now() - d.getTime();
   return Math.floor(diff / (365.25 * 24 * 3600 * 1000));
 }
@@ -13,6 +12,7 @@ function calcAge(dobTs) {
 export default function Profiles() {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   // add-profile form
   const [name, setName] = useState("");
@@ -25,9 +25,10 @@ export default function Profiles() {
   useEffect(() => {
     (async () => {
       try {
-        const q = query(collection(db, "profiles"), orderBy("createdAt", "desc"));
-        const snap = await getDocs(q);
-        setProfiles(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const res = await api.get("/profiles");
+        setProfiles(res.data);
+      } catch (err) {
+        setError("Failed to load profiles.");
       } finally {
         setLoading(false);
       }
@@ -40,21 +41,17 @@ export default function Profiles() {
       alert("Fill all fields");
       return;
     }
-    await addDoc(collection(db, "profiles"), {
-      name,
-      dob: Timestamp.fromDate(new Date(dob)),
-      gender,
-      bloodGroup,
-      createdAt: Timestamp.now(),
-    });
-
-    // refresh list
-    const q = query(collection(db, "profiles"), orderBy("createdAt", "desc"));
-    const snap = await getDocs(q);
-    setProfiles(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-
-    // reset form
-    setName(""); setDob(""); setGender(""); setBloodGroup("");
+    try {
+      const res = await api.post("/profiles", { name, dob, gender, bloodGroup });
+      // Newest-first, matching what the list endpoint returns.
+      setProfiles((prev) => [res.data, ...prev]);
+      setName("");
+      setDob("");
+      setGender("");
+      setBloodGroup("");
+    } catch (err) {
+      alert(err.response?.data?.details?.[0]?.message || err.response?.data?.message || "Failed to add profile");
+    }
   };
 
   return (
@@ -80,18 +77,18 @@ export default function Profiles() {
       </form>
 
       {/* List */}
-      {loading ? <p>Loading…</p> : (
+      {loading ? <p>Loading…</p> : error ? <p style={{ color: "crimson" }}>{error}</p> : (
         <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
           {profiles.map(p => (
-            <li key={p.id} style={{ border: "1px solid #eee", borderRadius: 12, background: "#fff", padding: 12 }}>
+            <li key={p._id} style={{ border: "1px solid #eee", borderRadius: 12, background: "#fff", padding: 12 }}>
               <div style={{ fontWeight: 700 }}>{p.name}</div>
               <div style={{ color: "#555", fontSize: 14 }}>
-                DOB: {p.dob?.toDate?.().toLocaleDateString?.() || "—"} • Age: {calcAge(p.dob)}
+                DOB: {p.dob ? new Date(p.dob).toLocaleDateString() : "—"} • Age: {calcAge(p.dob)}
               </div>
               <div style={{ color: "#555", fontSize: 14 }}>
                 Gender: {p.gender} • Blood: {p.bloodGroup}
               </div>
-              <button onClick={() => nav(`/profiles/${p.id}`)} style={{ marginTop: 8 }}>
+              <button onClick={() => nav(`/profiles/${p._id}`)} style={{ marginTop: 8 }}>
                 View medicines
               </button>
             </li>

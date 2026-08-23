@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-export default function Login() {
-  const { login } = useAuth();
+export default function Signup() {
+  const { signup } = useAuth();
   const navigate = useNavigate();
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -16,10 +17,13 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      await signup(email, password, name);
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      // express-validator returns { message, details: [{field, message}] } on 400
+      const details = err.response?.data?.details;
+      const message = details?.[0]?.message || err.response?.data?.message || "Signup failed";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -46,10 +50,16 @@ export default function Login() {
           background: "var(--card)",
         }}
       >
-        <h2 style={{ margin: 0 }}>Log In</h2>
+        <h2 style={{ margin: 0 }}>Create Account</h2>
 
         {error && <div style={{ color: "crimson", fontSize: 14 }}>{error}</div>}
 
+        <input
+          placeholder="Full name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
         <input
           type="email"
           placeholder="Email"
@@ -59,18 +69,19 @@ export default function Login() {
         />
         <input
           type="password"
-          placeholder="Password"
+          placeholder="Password (min. 8 characters)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          minLength={8}
         />
 
         <button type="submit" disabled={loading} style={{ padding: "10px 20px", fontSize: 16, borderRadius: 10 }}>
-          {loading ? "Logging in…" : "Log In"}
+          {loading ? "Creating account…" : "Sign Up"}
         </button>
 
         <div style={{ fontSize: 14, textAlign: "center" }}>
-          No account? <Link to="/signup">Sign up</Link>
+          Already have an account? <Link to="/login">Log in</Link>
         </div>
       </form>
     </div>

@@ -114,7 +114,7 @@ export default function Login() {
           View Demo
         </button>
         <p className="muted" style={{ fontSize: "var(--font-size-xs)", textAlign: "center", marginTop: "calc(-1 * var(--space-2))" }}>
-          Explore a read-only sample workspace — no account required.
+          Explore a read-only sample workspace. No account required.
         </p>
 
         <div className="muted" style={{ fontSize: "var(--font-size-sm)", textAlign: "center" }}>

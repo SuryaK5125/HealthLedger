@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axiosInstance";
+import { useAuth } from "../context/AuthContext";
 import EmptyState from "../components/EmptyState";
+import { demoProfiles, demoMedications } from "../data/demoData";
 
 function MedCard({ m }) {
   const start = m.startDate ? new Date(m.startDate).toLocaleDateString() : "—";
@@ -25,6 +27,7 @@ function MedCard({ m }) {
 export default function ProfileDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isDemo } = useAuth();
 
   const [profile, setProfile] = useState(null);
   const [viewHistory, setViewHistory] = useState(false);
@@ -42,6 +45,19 @@ export default function ProfileDetail() {
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
+    if (isDemo) {
+      const demoProfile = demoProfiles.find((p) => p._id === id);
+      if (!demoProfile) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+      setProfile(demoProfile);
+      setMeds(demoMedications.filter((m) => m.profileId === id));
+      setLoading(false);
+      return;
+    }
+
     (async () => {
       try {
         const [profileRes, medsRes] = await Promise.all([
@@ -58,7 +74,7 @@ export default function ProfileDetail() {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, isDemo]);
 
   // The backend does not store an "ongoing" flag — a medication with no end
   // date is current, one with a past or present end date is history. This
@@ -69,6 +85,7 @@ export default function ProfileDetail() {
 
   const addMedication = async (e) => {
     e.preventDefault();
+    if (isDemo) return;
     if (!name || !dosage || !frequency || !startDate) {
       alert("Fill required fields");
       return;
@@ -99,6 +116,7 @@ export default function ProfileDetail() {
   // and appointments for the profile, plus their Cloudinary assets) — the
   // client no longer has to orchestrate the batched deletes itself.
   const deleteProfileAndData = async () => {
+    if (isDemo) return;
     if (!window.confirm(`Delete ${profile?.name}'s profile and all related data? This cannot be undone.`)) return;
 
     try {
@@ -133,12 +151,18 @@ export default function ProfileDetail() {
           <div className="muted" style={{ marginTop: "var(--space-1)", fontSize: "var(--font-size-sm)" }}>
             DOB {dob} • Age {age}
           </div>
-          <div style={{ display: "flex", gap: "var(--space-1)", marginTop: "var(--space-2)" }}>
+          <div style={{ display: "flex", gap: "var(--space-1)", marginTop: "var(--space-2)", flexWrap: "wrap" }}>
+            {profile.relationship && <span className="badge">{profile.relationship}</span>}
             <span className="badge">{profile.gender}</span>
             <span className="badge">{profile.bloodGroup}</span>
           </div>
         </div>
-        <button onClick={deleteProfileAndData} className="btn-danger-outline">
+        <button
+          onClick={deleteProfileAndData}
+          className="btn-danger-outline"
+          disabled={isDemo}
+          title={isDemo ? "Sign in to make changes." : undefined}
+        >
           Delete Profile
         </button>
       </div>
@@ -179,40 +203,42 @@ export default function ProfileDetail() {
         </button>
       </div>
 
-      {/* Add Medicine */}
-      <form onSubmit={addMedication} className="card" style={{ display: "grid", gap: "var(--space-3)", maxWidth: 720, padding: "var(--space-4)" }}>
-        <strong style={{ fontSize: "var(--font-size-lg)" }}>Add Medicine</strong>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-          <div style={{ display: "grid", gap: "var(--space-1)" }}>
-            <label htmlFor="med-name">Medicine</label>
-            <input id="med-name" placeholder="e.g., Amoxicillin 500mg" value={name} onChange={(e) => setName(e.target.value)} required />
+      {/* Add Medicine — a mutation form, hidden entirely in demo mode. */}
+      {!isDemo && (
+        <form onSubmit={addMedication} className="card" style={{ display: "grid", gap: "var(--space-3)", maxWidth: 720, padding: "var(--space-4)" }}>
+          <strong style={{ fontSize: "var(--font-size-lg)" }}>Add Medicine</strong>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              <label htmlFor="med-name">Medicine</label>
+              <input id="med-name" placeholder="e.g., Amoxicillin 500mg" value={name} onChange={(e) => setName(e.target.value)} required />
+            </div>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              <label htmlFor="med-dosage">Dosage</label>
+              <input id="med-dosage" placeholder="e.g., 1 tab" value={dosage} onChange={(e) => setDosage(e.target.value)} required />
+            </div>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              <label htmlFor="med-frequency">Frequency</label>
+              <input id="med-frequency" placeholder="e.g., 2x/day after food" value={frequency} onChange={(e) => setFrequency(e.target.value)} required />
+            </div>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              <label htmlFor="med-start">Start date</label>
+              <input id="med-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+            </div>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              <label htmlFor="med-end">End date (optional)</label>
+              <input id="med-end" type="date" value={endDateStr} onChange={(e) => setEndDateStr(e.target.value)} />
+            </div>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              <label htmlFor="med-notes">Notes (optional)</label>
+              <input id="med-notes" placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </div>
           </div>
-          <div style={{ display: "grid", gap: "var(--space-1)" }}>
-            <label htmlFor="med-dosage">Dosage</label>
-            <input id="med-dosage" placeholder="e.g., 1 tab" value={dosage} onChange={(e) => setDosage(e.target.value)} required />
+          <div className="muted" style={{ fontSize: "var(--font-size-xs)" }}>
+            Leave "End date" empty to mark as <strong>ongoing</strong>.
           </div>
-          <div style={{ display: "grid", gap: "var(--space-1)" }}>
-            <label htmlFor="med-frequency">Frequency</label>
-            <input id="med-frequency" placeholder="e.g., 2x/day after food" value={frequency} onChange={(e) => setFrequency(e.target.value)} required />
-          </div>
-          <div style={{ display: "grid", gap: "var(--space-1)" }}>
-            <label htmlFor="med-start">Start date</label>
-            <input id="med-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
-          </div>
-          <div style={{ display: "grid", gap: "var(--space-1)" }}>
-            <label htmlFor="med-end">End date (optional)</label>
-            <input id="med-end" type="date" value={endDateStr} onChange={(e) => setEndDateStr(e.target.value)} />
-          </div>
-          <div style={{ display: "grid", gap: "var(--space-1)" }}>
-            <label htmlFor="med-notes">Notes (optional)</label>
-            <input id="med-notes" placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
-        </div>
-        <div className="muted" style={{ fontSize: "var(--font-size-xs)" }}>
-          Leave "End date" empty to mark as <strong>ongoing</strong>.
-        </div>
-        <button type="submit" className="btn-primary" style={{ width: "fit-content" }}>Add</button>
-      </form>
+          <button type="submit" className="btn-primary" style={{ width: "fit-content" }}>Add</button>
+        </form>
+      )}
 
       {/* List */}
       {(viewHistory ? historyMeds : currentMeds).length === 0 ? (

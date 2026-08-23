@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import api from "../api/axiosInstance";
+import { useAuth } from "../context/AuthContext";
 import PageHeader from "../components/PageHeader";
 import EmptyState from "../components/EmptyState";
+import { demoProfiles, demoAppointments } from "../data/demoData";
 
 export default function Appointments() {
+  const { isDemo } = useAuth();
   const [appts, setAppts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,16 +41,27 @@ export default function Appointments() {
 
   useEffect(() => {
     (async () => {
+      if (isDemo) {
+        setProfiles(demoProfiles);
+        const now = Date.now();
+        const upcoming = demoAppointments
+          .filter((a) => new Date(a.date).getTime() >= now)
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        setAppts(upcoming);
+        setLoading(false);
+        return;
+      }
       const ps = await api.get("/profiles");
       setProfiles(ps.data);
       await loadUpcoming(ps.data);
       setLoading(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isDemo]);
 
   const addAppt = async (e) => {
     e.preventDefault();
+    if (isDemo) return;
     if (!profileId || !doctor || !dateStr || !timeStr) {
       alert("Profile, doctor, date, and time are required.");
       return;
@@ -66,44 +80,46 @@ export default function Appointments() {
     <div style={{ display: "grid", gap: "var(--space-5)" }}>
       <PageHeader title="Appointments" subtitle="Schedule and track upcoming visits for the whole family." />
 
-      {/* Add appointment */}
-      <form onSubmit={addAppt} className="card" style={{ padding: "var(--space-4)", display: "grid", gap: "var(--space-3)", maxWidth: 800 }}>
-        <strong style={{ fontSize: "var(--font-size-lg)" }}>Schedule New</strong>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-          <div style={{ display: "grid", gap: "var(--space-1)" }}>
-            <label htmlFor="appt-profile">Profile</label>
-            <select id="appt-profile" value={profileId} onChange={e=>setProfileId(e.target.value)} required>
-              <option value="">Select profile</option>
-              {profiles.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
-            </select>
+      {/* Schedule New — a mutation form, hidden entirely in demo mode. */}
+      {!isDemo && (
+        <form onSubmit={addAppt} className="card" style={{ padding: "var(--space-4)", display: "grid", gap: "var(--space-3)", maxWidth: 800 }}>
+          <strong style={{ fontSize: "var(--font-size-lg)" }}>Schedule New</strong>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              <label htmlFor="appt-profile">Profile</label>
+              <select id="appt-profile" value={profileId} onChange={e=>setProfileId(e.target.value)} required>
+                <option value="">Select profile</option>
+                {profiles.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              <label htmlFor="appt-doctor">Doctor</label>
+              <input id="appt-doctor" placeholder="Doctor" value={doctor} onChange={e=>setDoctor(e.target.value)} required />
+            </div>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              <label htmlFor="appt-specialty">Specialty</label>
+              <input id="appt-specialty" placeholder="e.g., ENT" value={specialty} onChange={e=>setSpecialty(e.target.value)} />
+            </div>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              <label htmlFor="appt-location">Location / Hospital</label>
+              <input id="appt-location" placeholder="Location / Hospital" value={location} onChange={e=>setLocation(e.target.value)} />
+            </div>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              <label htmlFor="appt-date">Date</label>
+              <input id="appt-date" type="date" value={dateStr} onChange={e=>setDateStr(e.target.value)} required />
+            </div>
+            <div style={{ display: "grid", gap: "var(--space-1)" }}>
+              <label htmlFor="appt-time">Time</label>
+              <input id="appt-time" type="time" value={timeStr} onChange={e=>setTimeStr(e.target.value)} required />
+            </div>
+            <div style={{ display: "grid", gap: "var(--space-1)", gridColumn: "1 / -1" }}>
+              <label htmlFor="appt-notes">Notes (optional)</label>
+              <input id="appt-notes" placeholder="Notes" value={notes} onChange={e=>setNotes(e.target.value)} />
+            </div>
           </div>
-          <div style={{ display: "grid", gap: "var(--space-1)" }}>
-            <label htmlFor="appt-doctor">Doctor</label>
-            <input id="appt-doctor" placeholder="Doctor" value={doctor} onChange={e=>setDoctor(e.target.value)} required />
-          </div>
-          <div style={{ display: "grid", gap: "var(--space-1)" }}>
-            <label htmlFor="appt-specialty">Specialty</label>
-            <input id="appt-specialty" placeholder="e.g., ENT" value={specialty} onChange={e=>setSpecialty(e.target.value)} />
-          </div>
-          <div style={{ display: "grid", gap: "var(--space-1)" }}>
-            <label htmlFor="appt-location">Location / Hospital</label>
-            <input id="appt-location" placeholder="Location / Hospital" value={location} onChange={e=>setLocation(e.target.value)} />
-          </div>
-          <div style={{ display: "grid", gap: "var(--space-1)" }}>
-            <label htmlFor="appt-date">Date</label>
-            <input id="appt-date" type="date" value={dateStr} onChange={e=>setDateStr(e.target.value)} required />
-          </div>
-          <div style={{ display: "grid", gap: "var(--space-1)" }}>
-            <label htmlFor="appt-time">Time</label>
-            <input id="appt-time" type="time" value={timeStr} onChange={e=>setTimeStr(e.target.value)} required />
-          </div>
-          <div style={{ display: "grid", gap: "var(--space-1)", gridColumn: "1 / -1" }}>
-            <label htmlFor="appt-notes">Notes (optional)</label>
-            <input id="appt-notes" placeholder="Notes" value={notes} onChange={e=>setNotes(e.target.value)} />
-          </div>
-        </div>
-        <button type="submit" className="btn-primary" style={{ width: "fit-content" }}>Add</button>
-      </form>
+          <button type="submit" className="btn-primary" style={{ width: "fit-content" }}>Add</button>
+        </form>
+      )}
 
       {/* Upcoming list */}
       <section className="card" style={{ padding: "var(--space-4)" }}>

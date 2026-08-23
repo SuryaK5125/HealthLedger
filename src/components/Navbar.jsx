@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const linkStyle = ({ isActive }) => ({
@@ -14,8 +14,18 @@ const linkStyle = ({ isActive }) => ({
   transition: "background 0.15s ease, color 0.15s ease",
 });
 
+const secondaryButtonStyle = {
+  padding: "0.45rem 0.9rem",
+  borderRadius: "var(--radius-sm)",
+  border: "1px solid var(--border)",
+  background: "var(--card)",
+  color: "var(--text)",
+  fontSize: "var(--font-size-sm)",
+};
+
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, isDemo, exitDemo } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     try {
@@ -24,6 +34,11 @@ export default function Navbar() {
       console.error("Logout failed:", error);
       alert("Failed to sign out.");
     }
+  };
+
+  const handleExitDemo = () => {
+    exitDemo();
+    navigate("/login");
   };
 
   return (
@@ -63,25 +78,36 @@ export default function Navbar() {
 
         <div style={{ flex: 1 }} />
 
-        {user?.name && (
+        {isDemo && (
+          <span
+            className="badge"
+            title="You're viewing sample data in a read-only workspace."
+            style={{ marginRight: "var(--space-2)" }}
+          >
+            Demo Mode · Sample data only
+          </span>
+        )}
+
+        {!isDemo && user?.name && (
           <span className="muted" style={{ fontSize: "var(--font-size-sm)", marginRight: "var(--space-2)" }}>
             {user.name}
           </span>
         )}
 
-        <button
-          onClick={handleSignOut}
-          style={{
-            padding: "0.45rem 0.9rem",
-            borderRadius: "var(--radius-sm)",
-            border: "1px solid var(--border)",
-            background: "var(--card)",
-            color: "var(--text)",
-            fontSize: "var(--font-size-sm)",
-          }}
-        >
-          Sign Out
-        </button>
+        {isDemo ? (
+          <>
+            <button onClick={() => navigate("/login")} style={{ ...secondaryButtonStyle, marginRight: "var(--space-2)" }}>
+              Sign In
+            </button>
+            <button onClick={handleExitDemo} style={secondaryButtonStyle}>
+              Exit Demo
+            </button>
+          </>
+        ) : (
+          <button onClick={handleSignOut} style={secondaryButtonStyle}>
+            Sign Out
+          </button>
+        )}
       </div>
       <div style={{ borderTop: "1px solid var(--border)" }} />
     </header>

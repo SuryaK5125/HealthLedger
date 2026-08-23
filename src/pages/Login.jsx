@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, enterDemo } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -23,6 +23,11 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleViewDemo = () => {
+    enterDemo();
+    navigate("/dashboard");
   };
 
   return (
@@ -94,6 +99,23 @@ export default function Login() {
         <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: "var(--space-1)" }}>
           {loading ? "Logging in…" : "Log In"}
         </button>
+
+        <button
+          type="button"
+          onClick={handleViewDemo}
+          style={{
+            padding: "10px 20px",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--border)",
+            background: "var(--card)",
+            color: "var(--text)",
+          }}
+        >
+          View Demo
+        </button>
+        <p className="muted" style={{ fontSize: "var(--font-size-xs)", textAlign: "center", marginTop: "calc(-1 * var(--space-2))" }}>
+          Explore a read-only sample workspace — no account required.
+        </p>
 
         <div className="muted" style={{ fontSize: "var(--font-size-sm)", textAlign: "center" }}>
           No account? <Link to="/signup">Sign up</Link>

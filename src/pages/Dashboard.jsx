@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 import EmptyState from "../components/EmptyState";
+import { demoProfiles, demoMedications, demoAppointments, demoRecords } from "../data/demoData";
 
 function Section({ title, action, children }) {
   return (
@@ -19,7 +20,7 @@ function Section({ title, action, children }) {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, isDemo } = useAuth();
   const [profiles, setProfiles] = useState([]);
   const [recentRecords, setRecentRecords] = useState([]);
   const [upcomingAppts, setUpcomingAppts] = useState([]);
@@ -28,39 +29,54 @@ export default function Dashboard() {
 
   useEffect(() => {
     (async () => {
-      const profilesRes = await api.get("/profiles");
-      const profileList = profilesRes.data;
+      // Demo mode never calls the API — the same downstream filter/sort
+      // logic below just runs over the static sample dataset instead of
+      // fetched data, so the derived stats are computed identically either
+      // way rather than being hardcoded separately for demo mode.
+      let profileList, allAppts, allRecords, allMeds;
+
+      if (isDemo) {
+        profileList = demoProfiles;
+        allAppts = demoAppointments;
+        allRecords = demoRecords;
+        allMeds = demoMedications;
+      } else {
+        const profilesRes = await api.get("/profiles");
+        profileList = profilesRes.data;
+
+        // The backend scopes appointments/records/medications lists to one
+        // profile at a time, so a dashboard summarising "everything" fans out
+        // one request per profile and merges the results here.
+        const [apptResults, recordResults, medResults] = await Promise.all([
+          Promise.all(profileList.map((p) => api.get("/appointments", { params: { profileId: p._id } }))),
+          Promise.all(profileList.map((p) => api.get("/records", { params: { profileId: p._id } }))),
+          Promise.all(profileList.map((p) => api.get("/medications", { params: { profileId: p._id } }))),
+        ]);
+        allAppts = apptResults.flatMap((r) => r.data);
+        allRecords = recordResults.flatMap((r) => r.data);
+        allMeds = medResults.flatMap((r) => r.data);
+      }
+
       setProfiles(profileList);
 
-      // The backend scopes appointments/records/medications lists to one
-      // profile at a time, so a dashboard summarising "everything" fans out
-      // one request per profile and merges the results here.
-      const [apptResults, recordResults, medResults] = await Promise.all([
-        Promise.all(profileList.map((p) => api.get("/appointments", { params: { profileId: p._id } }))),
-        Promise.all(profileList.map((p) => api.get("/records", { params: { profileId: p._id } }))),
-        Promise.all(profileList.map((p) => api.get("/medications", { params: { profileId: p._id } }))),
-      ]);
-
       const now = Date.now();
-      const upcoming = apptResults
-        .flatMap((r) => r.data)
+      const upcoming = allAppts
         .filter((a) => new Date(a.date).getTime() >= now)
         .sort((a, b) => new Date(a.date) - new Date(b.date));
       setUpcomingAppts(upcoming);
 
       const sevenDaysAgo = now - 7 * 24 * 3600 * 1000;
-      const recent = recordResults
-        .flatMap((r) => r.data)
+      const recent = allRecords
         .filter((rec) => new Date(rec.uploadDate).getTime() >= sevenDaysAgo)
         .sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
       setRecentRecords(recent);
 
-      const currentMeds = medResults.flatMap((r) => r.data).filter((m) => !m.endDate);
+      const currentMeds = allMeds.filter((m) => !m.endDate);
       setCurrentMedCount(currentMeds.length);
 
       setLoading(false);
     })();
-  }, []);
+  }, [isDemo]);
 
   const profileName = (profileId) => profiles.find((p) => p._id === profileId)?.name || "—";
 

@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import api from "../api/axiosInstance";
+import { useAuth } from "../context/AuthContext";
 import PageHeader from "./PageHeader";
 import EmptyState from "./EmptyState";
+import { demoProfiles, demoRecords } from "../data/demoData";
 
 // Same reasoning as Appointments: the backend lists records per profile, so
 // "all my records" is profiles-fetch-then-fan-out, merged client-side.
 function RecordsList() {
+  const { isDemo } = useAuth();
   const [records, setRecords] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,6 +16,13 @@ function RecordsList() {
   useEffect(() => {
     (async () => {
       try {
+        if (isDemo) {
+          setProfiles(demoProfiles);
+          const sorted = [...demoRecords].sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
+          setRecords(sorted);
+          return;
+        }
+
         const profilesRes = await api.get("/profiles");
         setProfiles(profilesRes.data);
 
@@ -29,7 +39,7 @@ function RecordsList() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [isDemo]);
 
   const profileName = (profileId) => profiles.find((p) => p._id === profileId)?.name || "—";
 
@@ -53,13 +63,13 @@ function RecordsList() {
         >
           {records.map((rec) => (
             <li key={rec._id} className="card" style={{ overflow: "hidden", display: "grid" }}>
-              {rec.resourceType === "image" ? (
+              {rec.resourceType === "image" && rec.cloudinaryUrl ? (
                 <img
                   src={rec.cloudinaryUrl}
                   alt={rec.type}
                   style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }}
                 />
-              ) : (
+              ) : rec.cloudinaryUrl ? (
                 <a
                   href={rec.cloudinaryUrl}
                   target="_blank"
@@ -79,6 +89,26 @@ function RecordsList() {
                   <span className="badge">File</span>
                   View file
                 </a>
+              ) : (
+                // No file URL at all — this is a sample/demo record, not a
+                // real upload. Render a static, non-interactive file card
+                // rather than a link that would point nowhere.
+                <div
+                  style={{
+                    height: 160,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "var(--space-2)",
+                    background: "var(--accent)",
+                    color: "var(--accentText)",
+                    fontWeight: 700,
+                  }}
+                >
+                  <span className="badge">Sample</span>
+                  Document
+                </div>
               )}
               <div style={{ padding: "var(--space-3)", display: "grid", gap: "var(--space-1)" }}>
                 <div style={{ fontWeight: 700 }}>{rec.type}</div>

@@ -15,19 +15,23 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, isDemo } = useAuth();
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
+  // A demo visitor is authorized to view the app's protected routes even
+  // though they never signed in — see RequireAuth for the matching guard.
+  const authed = user || isDemo;
+
   return (
     <BrowserRouter>
       <div className="page-container">
-        {user && <Navbar />}
+        {authed && <Navbar />}
 
         <Routes>
-          <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
+          <Route path="/" element={<Navigate to={authed ? "/dashboard" : "/login"} replace />} />
 
           <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
           <Route path="/signup" element={user ? <Navigate to="/dashboard" replace /> : <Signup />} />
@@ -39,7 +43,7 @@ function App() {
           <Route path="/records" element={<RequireAuth><RecordsList /></RequireAuth>} />
           <Route path="/appointments" element={<RequireAuth><Appointments /></RequireAuth>} />
 
-          <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
+          <Route path="*" element={<Navigate to={authed ? "/dashboard" : "/login"} replace />} />
         </Routes>
       </div>
     </BrowserRouter>

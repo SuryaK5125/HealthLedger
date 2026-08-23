@@ -58,7 +58,7 @@ export default function Profiles() {
 
   return (
     <section style={{ display: "grid", gap: "var(--space-5)" }}>
-      <PageHeader title="Profiles" subtitle="Manage the family members whose health records live in HealthVault." />
+      <PageHeader title="Profiles" subtitle="Manage the family members whose health records live in HealthLedger." />
 
       {/* Add Profile */}
       <form onSubmit={addProfile} className="card" style={{ display: "grid", gap: "var(--space-3)", maxWidth: 720, padding: "var(--space-4)" }}>

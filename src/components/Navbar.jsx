@@ -50,7 +50,7 @@ export default function Navbar() {
         }}
       >
         <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 800, marginRight: "var(--space-3)", color: "var(--accentText)" }}>
-          HealthVault
+          HealthLedger
         </div>
 
         <nav style={{ display: "flex", alignItems: "center", overflowX: "auto", gap: 2 }} aria-label="Main navigation">
